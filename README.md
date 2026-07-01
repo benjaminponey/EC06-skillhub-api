@@ -1,3 +1,5 @@
+benjaminponey/EC06-skillhub-api
+
 # SkillHub API — starter EC06
 
 Mini API Express (Node.js 20) qui sert de base à l'épreuve EC06.
