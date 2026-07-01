@@ -1,0 +1,82 @@
+name: CI/CD SkillHub API
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository }}
+
+jobs:
+  quality:
+    name: Quality (lint + test)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Preparer le fichier .env
+        run: cp .env.dist .env
+      - name: Lint (dans Docker)
+        run: docker compose run --rm app npm run lint
+      - name: Tests (dans Docker)
+        run: docker compose run --rm app npm test
+      - name: Nettoyage
+        if: always()
+        run: docker compose down -v
+
+  build:
+    name: Build image Docker
+    needs: quality
+    runs-on: ubuntu-latest
+    outputs:
+      short_sha: ${{ steps.vars.outputs.short_sha }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Calculer le tag
+        id: vars
+        run: echo "short_sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Build de l'image finale
+        run: |
+          docker build \
+            -t ${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.short_sha }} \
+            -t ${{ env.IMAGE_NAME }}:latest \
+            .
+      - name: Verifier la taille de l'image
+        run: docker images ${{ env.IMAGE_NAME }}
+      - name: Connexion a GHCR
+        if: github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push de l'image
+        if: github.ref == 'refs/heads/main'
+        run: |
+          docker push ${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.short_sha }}
+          docker push ${{ env.IMAGE_NAME }}:latest
+
+  deploy:
+    name: Deploy (simule)
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Rendre le script executable
+        run: chmod +x deploy.sh
+      - name: Deploiement simule
+        run: ./deploy.sh ${{ needs.build.outputs.short_sha }} production
+      - name: Publier deploy.log
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-log
+          path: deploy.log

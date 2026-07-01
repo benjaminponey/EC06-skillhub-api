@@ -1,0 +1,14 @@
+node_modules/
+.env
+.env.local
+.env.*.local
+*.log
+npm-debug.log*
+logs/
+coverage/
+deploy.log
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.pid
