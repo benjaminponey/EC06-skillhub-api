@@ -1,3 +1,4 @@
+@'
 name: CI/CD SkillHub API
 
 on:
@@ -9,9 +10,6 @@ on:
 permissions:
   contents: read
   packages: write
-
-env:
-  IMAGE_NAME: ghcr.io/${{ github.repository }}
 
 jobs:
   quality:
@@ -39,6 +37,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Definir le nom de l'image en minuscules
+        run: echo "IMAGE_NAME=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
       - name: Calculer le tag
         id: vars
         run: echo "short_sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
@@ -80,3 +80,4 @@ jobs:
         with:
           name: deploy-log
           path: deploy.log
+'@ | Set-Content -Path ".github/workflows/ci.yml" -Encoding UTF8
